@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Test outputs
+test_*_descriptions.json
+descriptions/
+model_test_results/
+
+# uv / venv
+.venv/
+uv.lock
+
+# Internal logs
+work_log.md

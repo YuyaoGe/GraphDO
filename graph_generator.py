@@ -22,7 +22,8 @@ import networkx as nx
 from typing import Dict, Any, List, Optional
 
 
-TASKS = ["connectivity", "cycle", "shortest_path", "hamilton", "topology"]
+TASKS = ["connectivity", "cycle", "shortest_path", "hamilton", "topology",
+         "node_classification"]
 
 # Paper parameters (Appendix §GraphDO)
 N_MIN = 5
@@ -197,6 +198,120 @@ def gen_topology(rng: random.Random) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Node classification (T6) — Planetoid datasets with ego / forest fire sampling
+# ---------------------------------------------------------------------------
+
+# Lazily-loaded cache so we only load each Planetoid dataset once per process.
+_PLANETOID_CACHE: Dict[str, Any] = {}
+
+NC_DATASETS = ["cora", "citeseer", "pubmed"]
+NC_SAMPLINGS = ["ego", "forest_fire"]
+NC_SAMPLE_SIZE = 50   # Paper: 50-node subgraphs
+NC_EGO_HOPS = 3       # Paper: 3-hop ego graphs
+
+
+def _load_planetoid(name: str):
+    """Load a Planetoid dataset (cora/citeseer/pubmed) via torch_geometric, cached."""
+    if name in _PLANETOID_CACHE:
+        return _PLANETOID_CACHE[name]
+    from torch_geometric.datasets import Planetoid
+    from torch_geometric.utils import to_networkx
+    pretty = {"cora": "Cora", "citeseer": "Citeseer", "pubmed": "Pubmed"}[name]
+    dataset = Planetoid(root="./data", name=pretty)
+    data = dataset[0]
+    G = to_networkx(data, to_undirected=True)
+    _PLANETOID_CACHE[name] = (data, G)
+    return data, G
+
+
+def _ego_sample(G, data, rng: random.Random, sample_size: int = NC_SAMPLE_SIZE,
+                hops: int = NC_EGO_HOPS) -> Optional[Dict[str, Any]]:
+    """Sample one ego subgraph with exactly `sample_size` nodes (paper requirement)."""
+    node_list = list(G.nodes())
+    rng.shuffle(node_list)
+    for ego_node in node_list:
+        sub = nx.ego_graph(G, ego_node, radius=hops)
+        if sub.number_of_nodes() == sample_size:
+            # Pick a random test node
+            test_node = rng.choice(list(sub.nodes()))
+            edges = [[int(u), int(v)] for u, v in sub.edges()]
+            node_labels = {int(n): int(data.y[n].item()) for n in sub.nodes()}
+            return {
+                "dataset": "unknown",  # filled by caller
+                "sampling": "ego",
+                "num_nodes": sub.number_of_nodes(),
+                "num_edges": sub.number_of_edges(),
+                "edges": edges,
+                "node_labels": node_labels,
+                "test_node": int(test_node),
+            }
+    return None
+
+
+def _forest_fire_sample(G, data, rng: random.Random,
+                        sample_size: int = NC_SAMPLE_SIZE) -> Optional[Dict[str, Any]]:
+    """Sample one forest-fire subgraph with `sample_size` nodes (paper: p=0.3)."""
+    import time
+    from littleballoffur import ForestFireSampler
+    seed = rng.randint(0, 2**31)
+    sampler = ForestFireSampler(number_of_nodes=sample_size, p=0.3, seed=seed)
+    try:
+        sub = sampler.sample(G)
+    except Exception:
+        return None
+    if sub.number_of_nodes() != sample_size:
+        return None
+    test_node = rng.choice(list(sub.nodes()))
+    edges = [[int(u), int(v)] for u, v in sub.edges()]
+    node_labels = {int(n): int(data.y[n].item()) for n in sub.nodes()}
+    return {
+        "dataset": "unknown",
+        "sampling": "forest_fire",
+        "num_nodes": sub.number_of_nodes(),
+        "num_edges": sub.number_of_edges(),
+        "edges": edges,
+        "node_labels": node_labels,
+        "test_node": int(test_node),
+    }
+
+
+def gen_node_classification(num_graphs: int, rng: random.Random,
+                            datasets: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """
+    Generate node classification subgraphs for all datasets × samplings.
+
+    Returns a flat list of graph dicts (num_graphs per dataset per sampling).
+    """
+    if datasets is None:
+        datasets = NC_DATASETS
+    graphs: List[Dict[str, Any]] = []
+    graph_id = 0
+    for ds_name in datasets:
+        print(f"  Loading {ds_name}...")
+        data, G = _load_planetoid(ds_name)
+        for sampling in NC_SAMPLINGS:
+            sampler_fn = _ego_sample if sampling == "ego" else _forest_fire_sample
+            count = 0
+            attempts = 0
+            while count < num_graphs and attempts < num_graphs * 50:
+                attempts += 1
+                result = sampler_fn(G, data, rng)
+                if result is None:
+                    continue
+                result["dataset"] = ds_name
+                result["task"] = "node_classification"
+                result["graph_id"] = graph_id
+                graphs.append(result)
+                graph_id += 1
+                count += 1
+            if count < num_graphs:
+                print(f"    WARNING: only generated {count}/{num_graphs} for {ds_name}/{sampling}")
+            else:
+                print(f"    {ds_name}/{sampling}: {count} graphs")
+    return graphs
+
+
+# ---------------------------------------------------------------------------
 # Task dispatch and I/O
 # ---------------------------------------------------------------------------
 
@@ -209,7 +324,10 @@ GENERATORS = {
 }
 
 
-def generate_task(task: str, num_graphs: int, rng: random.Random) -> List[Dict[str, Any]]:
+def generate_task(task: str, num_graphs: int, rng: random.Random,
+                  datasets: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    if task == "node_classification":
+        return gen_node_classification(num_graphs, rng, datasets)
     fn = GENERATORS[task]
     graphs = []
     for i in range(num_graphs):
@@ -252,11 +370,15 @@ After generation, run:
     )
     parser.add_argument(
         "--tasks", nargs="+", default=TASKS, choices=TASKS,
-        help="Tasks to generate (default: all 5)",
+        help="Tasks to generate (default: all 6)",
     )
     parser.add_argument(
         "--num_graphs", type=int, default=10,
         help="Graphs per task (default: 10; use 280 for paper-scale)",
+    )
+    parser.add_argument(
+        "--datasets", nargs="+", default=NC_DATASETS, choices=NC_DATASETS,
+        help="Datasets for node_classification (default: cora citeseer pubmed)",
     )
     parser.add_argument(
         "--output_dir", type=str, default="./graph",
@@ -275,7 +397,8 @@ After generation, run:
     )
 
     for task in args.tasks:
-        graphs = generate_task(task, args.num_graphs, rng)
+        ds = args.datasets if task == "node_classification" else None
+        graphs = generate_task(task, args.num_graphs, rng, datasets=ds)
         path = os.path.join(args.output_dir, f"{task}.jsonl")
         save_jsonl(graphs, path)
         print(f"  {task}: {len(graphs)} graphs → {path}")

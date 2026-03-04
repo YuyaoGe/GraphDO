@@ -3,6 +3,7 @@ Answer evaluators for GraphDO graph reasoning tasks.
 Uses NetworkX-based ground truth computation.
 """
 
+import re
 import networkx as nx
 from typing import Dict, Any, Optional
 
@@ -222,6 +223,45 @@ def evaluate_topology(response: str, graph_data: Dict[str, Any]) -> int:
     return 1 if (flag1 or flag2) else 0
 
 
+def evaluate_node_classification(response: str, graph_data: Dict[str, Any],
+                                  query_params: Dict[str, Any]) -> int:
+    """
+    Evaluate node classification answer.
+    Ground truth: graph_data["node_labels"][test_node]
+    Parses the response for a predicted label (integer).
+    Returns 1 if correct, 0 if wrong.
+    """
+    test_node = query_params.get("test_node")
+    if test_node is None:
+        return 0
+    node_labels = graph_data.get("node_labels", {})
+    expected = int(node_labels.get(str(test_node), node_labels.get(test_node, -1)))
+
+    ans = response.strip()
+
+    # Try common patterns: "label of node X is Y", "label Y", "the answer is Y"
+    patterns = [
+        rf'label\s+of\s+node\s+{test_node}\s*(?:is|=|:)\s*(\d+)',
+        rf'node\s+{test_node}\s*(?:is|=|:)\s*(?:label\s+)?(\d+)',
+        r'the\s+(?:predicted\s+)?label\s+is\s+(\d+)',
+        r'the\s+answer\s+is\s+(\d+)',
+        r'label\s*(?:is|=|:)\s*(\d+)',
+    ]
+    for pat in patterns:
+        m = re.search(pat, ans, re.IGNORECASE)
+        if m:
+            predicted = int(m.group(1))
+            return 1 if predicted == expected else 0
+
+    # Fallback: find the last integer in the response
+    digits = re.findall(r'\d+', ans)
+    if digits:
+        predicted = int(digits[-1])
+        return 1 if predicted == expected else 0
+
+    return 0
+
+
 def evaluate_answer(task: str, response: str, graph_data: Dict[str, Any],
                     is_weighted: bool, is_directed: bool,
                     query_params: Optional[Dict[str, Any]] = None) -> int:
@@ -239,5 +279,7 @@ def evaluate_answer(task: str, response: str, graph_data: Dict[str, Any],
         return evaluate_hamilton(response, graph_data)
     elif task == "topology":
         return evaluate_topology(response, graph_data)
+    elif task == "node_classification":
+        return evaluate_node_classification(response, graph_data, query_params or {})
     else:
         return -1

@@ -85,7 +85,16 @@ class GraphDescriptionGenerator:
     def _encode_description(self, encoder: GraphTextEncoder, ordered_edges: List[tuple],
                             graph_info: Dict[str, Any]) -> str:
         """Encode ordered edges into a natural language description."""
-        if graph_info["is_weighted"]:
+        if graph_info["task"] == "node_classification":
+            graph_data = graph_info["graph_data"]
+            test_node = graph_data["test_node"]
+            # Build label dict with "?" for the test node
+            node_labels = {}
+            for node_str, label in graph_data["node_labels"].items():
+                node = int(node_str)
+                node_labels[node] = "?" if node == test_node else label
+            return encoder.encode_labeled_graph(ordered_edges, node_labels)
+        elif graph_info["is_weighted"]:
             graph = graph_info["networkx_graph"]
             weighted_edges = []
             for u, v in ordered_edges:
@@ -126,6 +135,10 @@ class GraphDescriptionGenerator:
                     params["cycle_nodes"] = cycles[0]
             except Exception:
                 pass
+
+        elif task_type == "node_classification":
+            if "test_node" in graph_data:
+                params["test_node"] = graph_data["test_node"]
 
         return params
 

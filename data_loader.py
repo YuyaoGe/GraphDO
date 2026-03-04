@@ -41,6 +41,10 @@ class GraphDataLoader:
             "graph_type": "directed",
             "weighted": False,
         },
+        "node_classification": {
+            "graph_type": "undirected",
+            "weighted": False,
+        },
     }
 
     def __init__(self, graph_root: str = "./graph"):
@@ -56,7 +60,11 @@ class GraphDataLoader:
     def _build_networkx(self, graph_data: Dict[str, Any], task: str) -> nx.Graph:
         config = self.TASK_CONFIGS[task]
         G = nx.DiGraph() if config["graph_type"] == "directed" else nx.Graph()
-        G.add_nodes_from(range(graph_data["num_nodes"]))
+        # Node classification uses actual node IDs (not 0..n-1)
+        if "node_labels" in graph_data:
+            G.add_nodes_from(int(n) for n in graph_data["node_labels"].keys())
+        else:
+            G.add_nodes_from(range(graph_data["num_nodes"]))
         for edge in graph_data["edges"]:
             u, v = edge[0], edge[1]
             w = edge[2] if config["weighted"] and len(edge) >= 3 else 1

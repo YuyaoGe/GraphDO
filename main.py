@@ -95,6 +95,24 @@ def extract_questions_from_descriptions(descriptions: List[Dict[str, Any]]) -> L
                     'is_directed': is_directed,
                     'descriptions': desc_data['descriptions']
                 })
+
+        elif task == "node_classification":
+            if 'test_node' in graph_data:
+                test_node = graph_data['test_node']
+                question_text = f"What is the label of node {test_node}?"
+
+                questions.append({
+                    'graph_id': desc_data['graph_id'],
+                    'filename': desc_data['filename'],
+                    'task': task,
+                    'question_id': desc_data['graph_id'],
+                    'question': question_text,
+                    'query_params': {'test_node': test_node},
+                    'graph_data': graph_data,
+                    'is_weighted': is_weighted,
+                    'is_directed': is_directed,
+                    'descriptions': desc_data['descriptions']
+                })
     
     return questions
 

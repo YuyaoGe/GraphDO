@@ -192,6 +192,36 @@ TASK_EXAMPLES = {
             ),
         },
     ],
+    "node_classification": [
+        {
+            "graph_description": (
+                "Adjacency list: [(10, 20), (10, 30), (20, 30), (20, 40), (30, 50)]\n\n"
+                "Node to label mapping: node 10: label 2 | node 20: label 2 | "
+                "node 30: label ? | node 40: label 0 | node 50: label 1"
+            ),
+            "question": "What is the label of node 30?",
+            "answer": "The label of node 30 is 2.",
+            "reasoning": (
+                "Node 30 is connected to nodes 10 and 20 (both label 2) and node 50 (label 1). "
+                "The majority of its neighbors have label 2. "
+                "Therefore the label of node 30 is 2."
+            ),
+        },
+        {
+            "graph_description": (
+                "Adjacency list: [(1, 2), (1, 3), (2, 4), (3, 5), (4, 5)]\n\n"
+                "Node to label mapping: node 1: label 0 | node 2: label 1 | "
+                "node 3: label 1 | node 4: label ? | node 5: label 1"
+            ),
+            "question": "What is the label of node 4?",
+            "answer": "The label of node 4 is 1.",
+            "reasoning": (
+                "Node 4 is connected to nodes 2 (label 1) and 5 (label 1). "
+                "Both neighbors have label 1. "
+                "Therefore the label of node 4 is 1."
+            ),
+        },
+    ],
 }
 
 

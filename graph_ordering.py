@@ -370,6 +370,27 @@ class PersonalizationStrategy:
                 for node in graph.nodes():
                     personalization[node] = 1.0 / num_nodes
         
+        elif task_type == "node_classification":
+            # Distance-inverse personalization from the paper:
+            #   δ(v) = shortest path distance from test_node
+            #   e_v = (Δ - δ(v) + 1) / Σ(Δ - δ(u) + 1)
+            if task_params and "test_node" in task_params:
+                test_node = task_params["test_node"]
+                shortest_paths = nx.single_source_shortest_path_length(graph, test_node)
+                all_nodes = list(graph.nodes())
+                max_distance = max(shortest_paths.values()) if shortest_paths else 0
+                for node in all_nodes:
+                    if node in shortest_paths:
+                        distance = shortest_paths[node]
+                        personalization[node] = (max_distance - distance + 1)
+                    else:
+                        personalization[node] = 1e-5
+                total = sum(personalization.values())
+                personalization = {k: v / total for k, v in personalization.items()}
+            else:
+                for node in graph.nodes():
+                    personalization[node] = 1.0 / num_nodes
+
         elif task_type == "topology":
             # For topological sort: emphasize nodes with in-degree 0
             if isinstance(graph, nx.DiGraph):

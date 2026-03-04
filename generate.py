@@ -24,7 +24,8 @@ from description_generator import GraphDescriptionGenerator
 from data_loader import GraphDataLoader
 
 
-ALL_TASKS = ["connectivity", "cycle", "shortest_path", "hamilton", "topology"]
+ALL_TASKS = ["connectivity", "cycle", "shortest_path", "hamilton", "topology",
+             "node_classification"]
 ALL_ORDERS = ["random", "bfs", "dfs", "pagerank", "ppr"]
 
 

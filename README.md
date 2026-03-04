@@ -70,6 +70,37 @@ uv run python graph_generator.py --tasks node_classification --num_graphs 50 --d
 
 Add local model paths in `info.py`.
 
+## Citation
+
+```
+@inproceedings{ge-etal-2025-graph,
+    title = "Can Graph Descriptive Order Affect Solving Graph Problems with {LLM}s?",
+    author = "Ge, Yuyao  and
+      Liu, Shenghua  and
+      Bi, Baolong  and
+      Wang, Yiwei  and
+      Mei, Lingrui  and
+      Feng, Wenjie  and
+      Chen, Lizhe  and
+      Cheng, Xueqi",
+    editor = "Che, Wanxiang  and
+      Nabende, Joyce  and
+      Shutova, Ekaterina  and
+      Pilehvar, Mohammad Taher",
+    booktitle = "Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+    month = jul,
+    year = "2025",
+    address = "Vienna, Austria",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.acl-long.321/",
+    doi = "10.18653/v1/2025.acl-long.321",
+    pages = "6404--6420",
+    ISBN = "979-8-89176-251-0",
+    abstract = "Large language models (LLMs) have achieved significant success in reasoning tasks, including mathematical reasoning and logical deduction. Among these reasoning tasks, graph problems stand out due to their complexity and unique structural characteristics, attracting considerable attention from researchers. Previous studies have explored LLMs' graph reasoning abilities through various techniques, such as different encoding methods for graph structures and the use of carefully designed prompts. However, a critical factor has been mostly overlooked: the prompt sequential order in which graph descriptions are presented to the models. In this study, we present the first comprehensive analysis of how the order of graph descriptions impacts LLM performance. Specifically, we comprehensively evaluate four graph description orders across six graph problems using six mainstream LLMs. The results reveal that: (1) ordered graph descriptions significantly improve LLMs' comprehension of graph structures; (2) the robustness of LLMs to graph description order varies across different tasks; and (3) the impact of graph order on performance is closely related to the inherent characteristics of tasks. This study provides a critical advancement in the application of LLMs for solving graph-related problems, paving the way for future research to optimize model performance through strategic graph description ordering."
+}
+```
+
 ## Acknowledgments
 
 This paper references code from [GraphLLM](https://github.com/minnesotanlp/GraphLLM) and [NLGraph](https://github.com/Arthur-Heng/NLGraph).
+
